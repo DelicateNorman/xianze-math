@@ -1,5 +1,6 @@
-method: catmull_rom_interpolation
+method: local_segment_template_interpolation
 seed: 42
+train_data: data/student_release/data_ds15/train.pkl
 
 interpolation:
   fill_boundary: nearest
@@ -17,6 +18,15 @@ knn_template:
   top_k: 5
   alpha_8: 0.3    # weight for template (1/8 keep rate)
   alpha_16: 0.2   # weight for template (1/16 keep rate)
+
+local_segment_template:
+  spans: [8, 16]
+  max_segments_per_span: 250000
+  samples_per_traj_span: 3
+  min_displacement_m: 20.0
+  top_k: 20
+  max_feature_distance: 2.5
+  alpha: 1.0
 
 evaluation:
   only_missing: true

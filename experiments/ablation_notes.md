@@ -7,14 +7,18 @@
 | linear_time_interpolation | 92.04 | 121.82 | 170.39 | 224.55 | Baseline |
 | linear_with_speed_smoothing | 92.04 | 121.82 | 170.39 | 224.55 | 与baseline相同（无超速段）|
 | knn_template_refinement | 216.09 | 338.54 | — | — | **2.35x worse** — 失败方法 |
-| **catmull_rom_interpolation** | **89.16** | **116.18** | **166.22** | **215.65** | **最终方法** (-3.1% MAE) |
+| catmull_rom_interpolation | 89.16 | 116.18 | 166.22 | 215.65 | 曲线插值，优于linear |
+| pchip_time_interpolation | 87.59 | 116.09 | 163.53 | 216.03 | 保形三次Hermite插值，MAE优于Catmull |
+| **local_segment_template_interpolation** | **64.73** | **92.02** | **120.73** | **168.34** | **最终方法**：训练集局部缺口模板残差 |
 
 **Key Insights:**
 - 速度平滑对本数据集无效：15s采样下线性插值后基本无超速段
 - KNN模板方法严重劣化：全轨迹级别的相似度无法对齐局部间隙形状
 - Catmull-Rom给出3-5%改善：利用已知点切线方向更好跟随路网曲线
-- 残差学习无效（Mean deviation≈0）：剩余误差为不可预测的道路曲率噪声
-- **结论：无路网数据下，Catmull-Rom已近最优**
+- PCHIP在MAE上进一步优于Catmull-Rom，但RMSE改善有限
+- 局部缺口模板显著优于全轨迹KNN：关键是只匹配相同span的局部片段，并学习相对直线插值的弯曲残差
+- 该方法只使用data_ds15/train.pkl，不使用data_org/val_gt查表，避免验证集泄漏
+- **结论：Task A最终采用PCHIP fallback + local segment template residual correction**
 
 ## Task B Ablation Results
 

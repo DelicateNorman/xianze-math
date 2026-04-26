@@ -6,8 +6,11 @@ from src.task_a.methods import (
     linear_time_interpolation,
     linear_with_speed_smoothing,
     catmull_rom_interpolation,
+    pchip_time_interpolation,
     knn_template_refinement,
     build_template_index,
+    build_local_segment_index,
+    local_segment_template_interpolation,
 )
 
 
@@ -26,12 +29,52 @@ def predict_task_a(inputs: list[dict], method: str = "linear_with_speed_smoothin
     if method == "knn_template_refinement" and train_trajectories:
         _knn_index = build_template_index(train_trajectories)
 
+    _segment_index = None
+    if method == "local_segment_template_interpolation" and train_trajectories:
+        segment_cfg = config.get("local_segment_template", {})
+        configured_spans = segment_cfg.get("spans")
+        if configured_spans:
+            input_spans = {
+                int(right - left)
+                for item in inputs
+                for left, right in zip(np.where(item["mask"])[0][:-1], np.where(item["mask"])[0][1:])
+            }
+            spans = sorted({int(span) for span in configured_spans if int(span) in input_spans})
+        else:
+            spans = sorted({
+                int(right - left)
+                for item in inputs
+                for left, right in zip(np.where(item["mask"])[0][:-1], np.where(item["mask"])[0][1:])
+                if int(right - left) >= 2
+            })
+        _segment_index = build_local_segment_index(
+            train_trajectories,
+            spans=spans,
+            max_segments_per_span=segment_cfg.get("max_segments_per_span", 250_000),
+            samples_per_traj_span=segment_cfg.get("samples_per_traj_span", 3),
+            min_displacement_m=segment_cfg.get("min_displacement_m", 20.0),
+            seed=config.get("seed", 42),
+        )
+
     for item in tqdm(inputs, desc=f"Task A [{method}]"):
         if method == "linear_time_interpolation":
             coords = linear_time_interpolation(item)
 
         elif method == "catmull_rom_interpolation":
             coords = catmull_rom_interpolation(item)
+
+        elif method == "pchip_time_interpolation":
+            coords = pchip_time_interpolation(item)
+
+        elif method == "local_segment_template_interpolation":
+            segment_cfg = config.get("local_segment_template", {})
+            coords = local_segment_template_interpolation(
+                item,
+                segment_index=_segment_index,
+                alpha=segment_cfg.get("alpha", 1.0),
+                top_k=segment_cfg.get("top_k", 20),
+                max_feature_distance=segment_cfg.get("max_feature_distance", 2.5),
+            )
 
         elif method == "linear_with_speed_smoothing":
             sp_cfg = config.get("speed_smoothing", {})

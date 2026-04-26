@@ -2,60 +2,13 @@
 from __future__ import annotations
 import numpy as np
 from scipy.interpolate import interp1d
+from scipy.interpolate import PchipInterpolator
 from src.common.geo import haversine_batch, speed_ms
 
-
-def data_org_lookup(item: dict, org_trajectories: list | None,
-                    fallback_fn=None) -> np.ndarray:
-    """
-    Recover missing GPS points by looking up the high-frequency (3s) data_org
-    trajectory at the exact missing timestamps.
-
-    data_org/val is a strict superset of data_ds15/val in timestamps, so this
-    achieves near-zero error for val data. Falls back to linear interpolation
-    if traj_id is out of range or timestamps don't match.
-
-    org_trajectories: list of data_org trajectory dicts (loaded from data_org/val.pkl)
-    """
-    if fallback_fn is None:
-        fallback_fn = linear_time_interpolation
-
-    tid = item["traj_id"]
-    coords = item["coords"].copy()
-    timestamps = item["timestamps"].astype(np.int64)
-    mask = item["mask"]
-
-    if org_trajectories is None or tid >= len(org_trajectories):
-        return fallback_fn(item)
-
-    org = org_trajectories[tid]
-    org_ts = np.array(org["timestamps"], dtype=np.int64)
-    org_coords = np.array(org["coords"], dtype=np.float64)
-
-    # Build timestamp → coordinate lookup
-    ts_to_coord = {int(t): org_coords[i] for i, t in enumerate(org_ts)}
-
-    result = coords.astype(np.float64).copy()
-    missing_idx = np.where(~mask)[0]
-    fallback_needed = False
-
-    for i in missing_idx:
-        t = int(timestamps[i])
-        if t in ts_to_coord:
-            result[i] = ts_to_coord[t]
-        else:
-            fallback_needed = True
-
-    if fallback_needed:
-        # Interpolate remaining NaN with linear fallback
-        linear = fallback_fn(item)
-        for i in missing_idx:
-            if np.any(np.isnan(result[i])):
-                result[i] = linear[i]
-
-    # Restore known points exactly
-    result[mask] = coords[mask]
-    return result
+EARTH_RADIUS_APPROX_M = 111_000.0
+XIAN_LAT_RAD = np.deg2rad(34.25)
+LON_SCALE_M = EARTH_RADIUS_APPROX_M * np.cos(XIAN_LAT_RAD)
+LAT_SCALE_M = EARTH_RADIUS_APPROX_M
 
 
 def linear_time_interpolation(item: dict) -> np.ndarray:
@@ -222,6 +175,197 @@ def catmull_rom_interpolation(item: dict) -> np.ndarray:
 
     result = np.stack([result_lon, result_lat], axis=1)
     result[known_idx] = coords[known_idx]
+    return result
+
+
+def pchip_time_interpolation(item: dict) -> np.ndarray:
+    """
+    Shape-preserving cubic Hermite interpolation over timestamps.
+
+    PCHIP keeps the endpoint constraints of linear interpolation while using a
+    monotone local cubic slope estimate. In this trajectory recovery task it
+    gives smoother turns than linear interpolation and avoids the larger
+    overshoot risk of unconstrained cubic splines.
+    """
+    coords = item["coords"].astype(np.float64).copy()
+    timestamps = item["timestamps"].astype(np.float64)
+    mask = item["mask"]
+
+    known_idx = np.where(mask)[0]
+    if len(known_idx) < 2:
+        return linear_time_interpolation(item)
+
+    known_ts = timestamps[known_idx]
+    result = np.empty_like(coords, dtype=np.float64)
+
+    for dim in (0, 1):
+        known_values = coords[known_idx, dim]
+        try:
+            interpolator = PchipInterpolator(
+                known_ts,
+                known_values,
+                extrapolate=False,
+            )
+            values = interpolator(timestamps)
+            boundary_fill = np.interp(
+                timestamps,
+                known_ts,
+                known_values,
+                left=known_values[0],
+                right=known_values[-1],
+            )
+            result[:, dim] = np.where(np.isnan(values), boundary_fill, values)
+        except ValueError:
+            result[:, dim] = np.interp(
+                timestamps,
+                known_ts,
+                known_values,
+                left=known_values[0],
+                right=known_values[-1],
+            )
+
+    result[known_idx] = coords[known_idx]
+    return result
+
+
+def _lonlat_to_local_xy(coords: np.ndarray) -> np.ndarray:
+    coords = np.asarray(coords, dtype=np.float64)
+    return np.column_stack([coords[:, 0] * LON_SCALE_M, coords[:, 1] * LAT_SCALE_M])
+
+
+def _local_xy_to_lonlat(xy: np.ndarray) -> np.ndarray:
+    xy = np.asarray(xy, dtype=np.float64)
+    return np.column_stack([xy[:, 0] / LON_SCALE_M, xy[:, 1] / LAT_SCALE_M])
+
+
+def _segment_feature(start_xy: np.ndarray, end_xy: np.ndarray) -> np.ndarray:
+    displacement = end_xy - start_xy
+    midpoint = (start_xy + end_xy) * 0.5
+    return np.r_[midpoint / 1000.0, displacement / 500.0].astype(np.float32)
+
+
+def build_local_segment_index(
+    train_trajectories: list[np.ndarray],
+    spans: list[int],
+    max_segments_per_span: int = 250_000,
+    samples_per_traj_span: int = 3,
+    min_displacement_m: float = 20.0,
+    seed: int = 42,
+) -> dict[int, tuple]:
+    """Build KDTree indexes of local train segments keyed by endpoint gap span."""
+    from scipy.spatial import cKDTree
+
+    rng = np.random.default_rng(seed)
+    wanted_spans = sorted({int(s) for s in spans if int(s) >= 2})
+    features: dict[int, list[np.ndarray]] = {span: [] for span in wanted_spans}
+    residuals: dict[int, list[np.ndarray]] = {span: [] for span in wanted_spans}
+
+    for traj in train_trajectories:
+        xy = _lonlat_to_local_xy(traj)
+        n_points = len(xy)
+
+        for span in wanted_spans:
+            if len(features[span]) >= max_segments_per_span or n_points <= span:
+                continue
+
+            starts = np.arange(n_points - span)
+            if len(starts) > samples_per_traj_span:
+                starts = rng.choice(starts, size=samples_per_traj_span, replace=False)
+
+            ratios = (np.arange(span + 1, dtype=np.float64) / span)[:, None]
+            for start_idx in starts:
+                end_idx = start_idx + span
+                start_xy = xy[start_idx]
+                end_xy = xy[end_idx]
+                displacement = end_xy - start_xy
+                if np.linalg.norm(displacement) < min_displacement_m:
+                    continue
+
+                linear_segment = start_xy + ratios * displacement
+                features[span].append(_segment_feature(start_xy, end_xy))
+                residuals[span].append(
+                    (xy[start_idx:end_idx + 1] - linear_segment).astype(np.float32)
+                )
+
+                if len(features[span]) >= max_segments_per_span:
+                    break
+
+        if all(len(features[span]) >= max_segments_per_span for span in wanted_spans):
+            break
+
+    indexes = {}
+    for span in wanted_spans:
+        if not features[span]:
+            continue
+        feature_array = np.asarray(features[span], dtype=np.float32)
+        residual_array = np.asarray(residuals[span], dtype=np.float32)
+        indexes[span] = (cKDTree(feature_array), residual_array)
+    return indexes
+
+
+def local_segment_template_interpolation(
+    item: dict,
+    segment_index: dict[int, tuple] | None,
+    alpha: float = 1.0,
+    top_k: int = 20,
+    max_feature_distance: float = 2.5,
+    fallback_fn=None,
+) -> np.ndarray:
+    """
+    Recover gaps with train-set local segment templates.
+
+    For each pair of adjacent known points, this method finds training segments
+    with the same point span and similar local start/end geometry. It averages
+    their residual from straight-line interpolation, then adds that learned
+    curvature residual to the current gap. This fixes the failure mode of
+    whole-trajectory KNN by matching only the local gap being recovered.
+    """
+    if fallback_fn is None:
+        fallback_fn = pchip_time_interpolation
+
+    fallback = fallback_fn(item)
+    if not segment_index:
+        return fallback
+
+    linear_lonlat = linear_time_interpolation(item)
+    linear_xy = _lonlat_to_local_xy(linear_lonlat)
+    result_xy = _lonlat_to_local_xy(fallback)
+    coords = item["coords"]
+    mask = item["mask"]
+    known_idx = np.where(mask)[0]
+
+    for left_idx, right_idx in zip(known_idx[:-1], known_idx[1:]):
+        span = int(right_idx - left_idx)
+        if span < 2 or span not in segment_index:
+            continue
+
+        start_xy = linear_xy[left_idx]
+        end_xy = linear_xy[right_idx]
+        if np.linalg.norm(end_xy - start_xy) < 20.0:
+            continue
+
+        tree, residuals = segment_index[span]
+        k = min(top_k, len(residuals))
+        distances, candidate_idx = tree.query(_segment_feature(start_xy, end_xy), k=k)
+        distances = np.atleast_1d(distances)
+        candidate_idx = np.atleast_1d(candidate_idx)
+        keep = distances < max_feature_distance
+        if not np.any(keep):
+            continue
+
+        weights = 1.0 / (distances[keep] + 1e-3)
+        weights = weights / weights.sum()
+        mean_residual = np.tensordot(
+            weights,
+            residuals[candidate_idx[keep]],
+            axes=(0, 0),
+        )
+        result_xy[left_idx:right_idx + 1] = (
+            linear_xy[left_idx:right_idx + 1] + alpha * mean_residual
+        )
+
+    result = _local_xy_to_lonlat(result_xy)
+    result[mask] = coords[mask]
     return result
 
 

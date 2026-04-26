@@ -19,7 +19,7 @@ VAL_INPUT_8="${DATA_ROOT}/task_A_recovery/val_input_8.pkl"
 VAL_INPUT_16="${DATA_ROOT}/task_A_recovery/val_input_16.pkl"
 VAL_GT="${DATA_ROOT}/task_A_recovery/val_gt.pkl"
 
-METHOD="catmull_rom_interpolation"
+METHOD="local_segment_template_interpolation"
 CONFIG="configs/task_a_advanced.yaml"
 OUT_DIR="outputs/submissions"
 

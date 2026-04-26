@@ -129,6 +129,53 @@ catmull_rom_interpolation
 
 ---
 
+## Experiment 2026-04-26 19:58–20:01 — Task A PCHIP and Local Segment Template
+
+### Task
+Task A
+
+### Method
+1. pchip_time_interpolation
+2. local_segment_template_interpolation
+
+### Config
+- config file: configs/task_a_advanced.yaml
+- PCHIP: shape-preserving cubic Hermite interpolation over known timestamps
+- Local segment template:
+  - train data: data_ds15/train.pkl only
+  - spans: [8, 16]
+  - max_segments_per_span: 250000
+  - samples_per_traj_span: 3
+  - top_k: 20
+  - alpha: 1.0
+  - fallback: PCHIP for unsupported/boundary spans
+
+### Result
+- PCHIP:
+  - val_input_8: MAE=87.59 m, RMSE=116.09 m
+  - val_input_16: MAE=163.53 m, RMSE=216.03 m
+- Local segment template:
+  - val_input_8: MAE=64.73 m, RMSE=92.02 m
+  - val_input_16: MAE=120.73 m, RMSE=168.34 m
+
+### Observations
+- PCHIP 比 Catmull-Rom 的 MAE 更低：1/8 从 89.16m 降到 87.59m，1/16 从 166.22m 降到 163.53m。
+- 整条轨迹 KNN 失败不代表历史轨迹无效，失败点在于相似性粒度错误。
+- 新方法改为“局部缺口模板”：只匹配相邻两个已知点之间的局部片段，按相同 span、局部位置和端点位移检索训练片段。
+- 对候选训练片段计算相对于直线插值的弯曲残差，再加到当前缺口上，因此能学习常见道路弯曲形态。
+- 该方法没有使用 data_org 或 val_gt 查表，只使用 data_ds15/train.pkl，属于可泛化训练集统计方法。
+- 相比 Catmull-Rom，局部模板在 1/8 上 MAE 降低 27.4%，在 1/16 上 MAE 降低 27.4%。
+
+### Analysis for Report/PPT
+- 这是 Task A 的主要创新点：从“轨迹级相似”改为“缺口级相似”，解决了 KNN 模板无法局部对齐的问题。
+- 方法可以解释为“物理插值 baseline + 历史局部道路形状残差修正”。
+- 可在报告中对比三层路线：linear → PCHIP/Catmull 曲线插值 → local segment template 历史残差。
+
+### Next Step
+将默认 Task A 方法切换为 local_segment_template_interpolation；课堂测试时确保 data_ds15/train.pkl 路径可用。
+
+---
+
 ## Experiment 2026-04-26 19:33 — Task B HistGradientBoosting v2
 
 ### Task

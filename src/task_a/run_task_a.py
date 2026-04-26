@@ -23,9 +23,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--input", required=True, help="Input pkl file path")
     p.add_argument("--output", required=True, help="Output pkl file path")
     p.add_argument("--gt", default=None, help="Ground truth pkl (required for val mode)")
-    p.add_argument("--method", default="catmull_rom_interpolation",
+    p.add_argument("--method", default="local_segment_template_interpolation",
                    choices=["linear_time_interpolation", "linear_with_speed_smoothing",
-                            "catmull_rom_interpolation", "knn_template_refinement"])
+                            "catmull_rom_interpolation", "pchip_time_interpolation",
+                            "knn_template_refinement",
+                            "local_segment_template_interpolation"])
     p.add_argument("--config", default="configs/task_a_advanced.yaml")
     p.add_argument("--mode", choices=["val", "predict"], default="val")
     p.add_argument("--train-data", default=None, help="Training data pkl (for KNN method)")
@@ -56,17 +58,17 @@ def main() -> None:
 
     # Load training data if needed
     train_trajectories = None
-    if method == "knn_template_refinement":
+    if method in {"knn_template_refinement", "local_segment_template_interpolation"}:
         train_path = args.train_data or cfg.get("train_data", "data/student_release/data_ds15/train.pkl")
         if Path(train_path).exists():
-            logger.info(f"Loading training data for KNN: {train_path}")
+            logger.info(f"Loading training data for {method}: {train_path}")
             import numpy as np
             train_data = load_pkl(train_path)
             train_trajectories = [np.array(t["coords"], dtype=np.float64) for t in train_data]
             logger.info(f"Loaded {len(train_trajectories)} training trajectories")
         else:
-            logger.warning(f"Train data not found: {train_path}, falling back to linear method")
-            method = "linear_with_speed_smoothing"
+            logger.warning(f"Train data not found: {train_path}, falling back to PCHIP method")
+            method = "pchip_time_interpolation"
 
     predictions = predict_task_a(inputs, method=method, config=cfg,
                                   train_trajectories=train_trajectories)

@@ -25,7 +25,7 @@ python -m src.task_a.run_task_a \
   --input data/student_release/task_A_recovery/val_input_8.pkl \
   --gt    data/student_release/task_A_recovery/val_gt.pkl \
   --output outputs/submissions/task_a_val_8.pkl \
-  --method linear_with_speed_smoothing \
+  --method local_segment_template_interpolation \
   --config configs/task_a_advanced.yaml \
   --mode val
 ```
@@ -35,7 +35,7 @@ python -m src.task_a.run_task_a \
 python -m src.task_a.run_task_a \
   --input data/student_release/task_A_recovery/test_input_8.pkl \
   --output outputs/submissions/task_a_test_8.pkl \
-  --method linear_with_speed_smoothing \
+  --method local_segment_template_interpolation \
   --config configs/task_a_advanced.yaml \
   --mode predict
 ```
@@ -62,3 +62,7 @@ python -m src.task_b.run_task_b \
 
 ## Results
 See `experiments/task_a_results.csv` and `experiments/task_b_results.csv`.
+
+Latest Task A validation:
+- `local_segment_template_interpolation`: 64.73 m MAE / 92.02 m RMSE on `val_input_8`
+- `local_segment_template_interpolation`: 120.73 m MAE / 168.34 m RMSE on `val_input_16`
