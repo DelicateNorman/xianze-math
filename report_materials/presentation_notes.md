@@ -26,15 +26,23 @@
 流程图：
 ```
 稀疏输入
-→ 时间线性插值（初值）
-→ 速度约束平滑（去异常跳变）
-→ 历史轨迹模板融合（可选，增强曲线段）
+→ PCHIP保形插值（稳定fallback）
+→ 按相邻已知点切分局部缺口
+→ 从训练集检索相同span的相似局部片段
+→ 学习历史片段相对直线插值的弯曲残差
+→ residual correction
 → 输出恢复轨迹
 ```
+- 重点讲清楚：整条轨迹KNN失败，因为全局OD相似无法保证局部缺口对齐
+- 新方法是“缺口级相似”，只使用 data_ds15/train.pkl，不用 data_org/val_gt 查表
 - 展示1/8和1/16两种难度下的轨迹案例图（真值vs预测vs输入）
 
 ## 5. Task A 结果（1 min）
 方法对比表（见 experiments/ablation_notes.md）
+- linear: 92.04m / 170.39m MAE
+- Catmull-Rom: 89.16m / 166.22m MAE
+- PCHIP: 87.59m / 163.53m MAE
+- local segment template: 64.73m / 120.73m MAE
 误差分布图（见 outputs/figures/）
 
 ## 6. Task B 方法（2 min）
