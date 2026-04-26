@@ -5,3 +5,6 @@ experiment_id,datetime,method,input_file,mae_meter,rmse_meter,config,notes
 20260426_185626,2026-04-26T18:56:26.062862,linear_with_speed_smoothing,val_input_16,174.87,227.66,configs/task_a_advanced.yaml,
 20260426_185743,2026-04-26T18:57:43.380198,linear_with_speed_smoothing,val_input_8,92.04,121.82,configs/task_a_advanced.yaml,
 20260426_185745,2026-04-26T18:57:45.309003,linear_with_speed_smoothing,val_input_16,170.39,224.55,configs/task_a_advanced.yaml,
+20260426_190923,2026-04-26T19:09:23.154996,knn_template_refinement,val_input_8,216.68,282.79,configs/task_a_advanced.yaml,
+20260426_193621,2026-04-26T19:36:21.698113,catmull_rom_interpolation,val_input_8,89.16,116.18,configs/task_a_advanced.yaml,
+20260426_193627,2026-04-26T19:36:27.618985,catmull_rom_interpolation,val_input_16,166.22,215.65,configs/task_a_advanced.yaml,

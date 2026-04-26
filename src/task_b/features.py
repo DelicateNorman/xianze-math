@@ -38,6 +38,13 @@ def extract_features(item: dict) -> dict:
     mean_seg = float(np.mean(segs))
     max_seg = float(np.max(segs))
     std_seg = float(np.std(segs))
+    # Segment distance percentiles (capture distribution shape)
+    p25_seg = float(np.percentile(segs, 25))
+    p50_seg = float(np.percentile(segs, 50))
+    p75_seg = float(np.percentile(segs, 75))
+    p90_seg = float(np.percentile(segs, 90))
+    # Fraction of "slow" segments (< 50m in 15s ≈ 12 km/h)
+    slow_ratio = float(np.mean(segs < 50.0))
 
     bearings = bearing_batch(coords) if n >= 2 else np.array([0.0])
     bc = bearing_change(bearings) if len(bearings) >= 2 else np.array([0.0])
@@ -60,6 +67,13 @@ def extract_features(item: dict) -> dict:
         "mean_segment_distance": mean_seg,
         "max_segment_distance": max_seg,
         "std_segment_distance": std_seg,
+        "p25_segment_distance": p25_seg,
+        "p50_segment_distance": p50_seg,
+        "p75_segment_distance": p75_seg,
+        "p90_segment_distance": p90_seg,
+        "slow_segment_ratio": slow_ratio,
+        # Estimated travel time from sampling structure (num_points * ~15.64s)
+        "est_tt_from_npts": (n - 1) * 15.64,
         # Shape features
         "num_points": n,
         "bearing_change_mean": bc_mean,

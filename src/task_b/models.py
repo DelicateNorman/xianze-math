@@ -86,13 +86,21 @@ class RegressionModel:
         self.feature_names: list[str] = []
 
     def _build_model(self):
-        from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+        from sklearn.ensemble import (GradientBoostingRegressor, RandomForestRegressor,
+                                       HistGradientBoostingRegressor)
         from sklearn.linear_model import Ridge
         from sklearn.preprocessing import StandardScaler
         from sklearn.pipeline import Pipeline
 
         seed = self.kwargs.get("random_state", 42)
-        if self.model_type == "gradient_boosting":
+        if self.model_type == "hist_gradient_boosting":
+            return HistGradientBoostingRegressor(
+                max_iter=self.kwargs.get("n_estimators", 500),
+                max_depth=self.kwargs.get("max_depth", 6),
+                learning_rate=self.kwargs.get("learning_rate", 0.05),
+                random_state=seed,
+            )
+        elif self.model_type == "gradient_boosting":
             return GradientBoostingRegressor(
                 n_estimators=self.kwargs.get("n_estimators", 200),
                 max_depth=self.kwargs.get("max_depth", 5),

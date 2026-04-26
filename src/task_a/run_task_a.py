@@ -23,9 +23,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--input", required=True, help="Input pkl file path")
     p.add_argument("--output", required=True, help="Output pkl file path")
     p.add_argument("--gt", default=None, help="Ground truth pkl (required for val mode)")
-    p.add_argument("--method", default="linear_with_speed_smoothing",
+    p.add_argument("--method", default="catmull_rom_interpolation",
                    choices=["linear_time_interpolation", "linear_with_speed_smoothing",
-                            "knn_template_refinement"])
+                            "catmull_rom_interpolation", "knn_template_refinement"])
     p.add_argument("--config", default="configs/task_a_advanced.yaml")
     p.add_argument("--mode", choices=["val", "predict"], default="val")
     p.add_argument("--train-data", default=None, help="Training data pkl (for KNN method)")

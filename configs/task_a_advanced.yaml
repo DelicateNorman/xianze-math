@@ -1,4 +1,4 @@
-method: linear_with_speed_smoothing
+method: catmull_rom_interpolation
 seed: 42
 
 interpolation:
@@ -10,7 +10,7 @@ speed_smoothing:
   iterations: 2
 
 knn_template:
-  enabled: false
+  enabled: true
   max_candidates: 200
   start_dist_thresh_km: 1.0
   end_dist_thresh_km: 1.0
