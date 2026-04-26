@@ -1,0 +1,19 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+venv/
+.DS_Store
+
+# data
+data/
+*.pkl
+
+# outputs
+outputs/
+
+# notebooks checkpoints
+.ipynb_checkpoints/
+
+# logs
+*.log

@@ -1,0 +1,7 @@
+experiment_id,datetime,method,input_file,mae_meter,rmse_meter,config,notes
+20260426_185608,2026-04-26T18:56:08.490936,linear_time_interpolation,val_input_8,92.04,121.82,configs/task_a_baseline.yaml,
+20260426_185616,2026-04-26T18:56:16.951180,linear_time_interpolation,val_input_16,170.39,224.55,configs/task_a_baseline.yaml,
+20260426_185621,2026-04-26T18:56:21.397479,linear_with_speed_smoothing,val_input_8,99.55,129.58,configs/task_a_advanced.yaml,
+20260426_185626,2026-04-26T18:56:26.062862,linear_with_speed_smoothing,val_input_16,174.87,227.66,configs/task_a_advanced.yaml,
+20260426_185743,2026-04-26T18:57:43.380198,linear_with_speed_smoothing,val_input_8,92.04,121.82,configs/task_a_advanced.yaml,
+20260426_185745,2026-04-26T18:57:45.309003,linear_with_speed_smoothing,val_input_16,170.39,224.55,configs/task_a_advanced.yaml,

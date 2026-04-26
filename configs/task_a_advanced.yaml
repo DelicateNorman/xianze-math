@@ -1,0 +1,22 @@
+method: linear_with_speed_smoothing
+seed: 42
+
+interpolation:
+  fill_boundary: nearest
+
+speed_smoothing:
+  max_speed_kmh: 120.0
+  smoothing_window: 3
+  iterations: 2
+
+knn_template:
+  enabled: false
+  max_candidates: 200
+  start_dist_thresh_km: 1.0
+  end_dist_thresh_km: 1.0
+  top_k: 5
+  alpha_8: 0.3    # weight for template (1/8 keep rate)
+  alpha_16: 0.2   # weight for template (1/16 keep rate)
+
+evaluation:
+  only_missing: true

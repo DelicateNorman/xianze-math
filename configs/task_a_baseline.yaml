@@ -1,0 +1,8 @@
+method: linear_time_interpolation
+seed: 42
+
+interpolation:
+  fill_boundary: nearest   # nearest or extrapolate
+
+evaluation:
+  only_missing: true
