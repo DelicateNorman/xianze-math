@@ -2,14 +2,15 @@
 from __future__ import annotations
 import argparse
 import sys
-import yaml
 import csv
 import os
 from datetime import datetime
 from pathlib import Path
 
+from src.common.config import load_config
 from src.common.io import load_pkl, save_pkl, validate_task_a_output
 from src.common.logging_utils import get_logger
+from src.common.paths import resolve_existing_path
 from src.common.seed import set_seed
 from src.task_a.dataset import load_task_a_input, load_task_a_gt
 from src.task_a.predict import predict_task_a
@@ -34,11 +35,6 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 
-def load_config(path: str) -> dict:
-    with open(path) as f:
-        return yaml.safe_load(f)
-
-
 def main() -> None:
     args = parse_args()
 
@@ -60,10 +56,11 @@ def main() -> None:
     train_trajectories = None
     if method in {"knn_template_refinement", "local_segment_template_interpolation"}:
         train_path = args.train_data or cfg.get("train_data", "data/student_release/data_ds15/train.pkl")
-        if Path(train_path).exists():
-            logger.info(f"Loading training data for {method}: {train_path}")
+        resolved_train_path = resolve_existing_path(train_path, required=False)
+        if resolved_train_path is not None:
+            logger.info(f"Loading training data for {method}: {resolved_train_path}")
             import numpy as np
-            train_data = load_pkl(train_path)
+            train_data = load_pkl(resolved_train_path)
             train_trajectories = [np.array(t["coords"], dtype=np.float64) for t in train_data]
             logger.info(f"Loaded {len(train_trajectories)} training trajectories")
         else:

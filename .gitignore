@@ -5,9 +5,8 @@ __pycache__/
 venv/
 .DS_Store
 
-# raw data (large pkl files)
+# raw course data
 data/
-*.pkl
 
 # notebooks checkpoints
 .ipynb_checkpoints/

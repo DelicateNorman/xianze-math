@@ -11,15 +11,17 @@ import matplotlib.pyplot as plt
 
 from src.common.io import load_pkl
 from src.common.geo import trajectory_length, speed_ms
+from src.common.paths import candidate_data_roots, resolve_existing_path
 from src.common.time_features import departure_hour
 
-DATA_ROOT = Path("data/student_release")
+DATA_ROOT = next((root for root in candidate_data_roots() if (root / "data_ds15" / "train.pkl").exists()),
+                 Path("data/student_release"))
 FIG_DIR = Path("outputs/figures")
 FIG_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def load_ds15_train():
-    path = DATA_ROOT / "data_ds15" / "train.pkl"
+    path = resolve_existing_path(DATA_ROOT / "data_ds15" / "train.pkl")
     data = load_pkl(path)
     result = []
     for item in data:

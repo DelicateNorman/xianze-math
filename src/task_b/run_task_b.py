@@ -6,10 +6,10 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-import yaml
-
+from src.common.config import load_config
 from src.common.io import load_pkl, save_pkl, validate_task_b_output
 from src.common.logging_utils import get_logger
+from src.common.paths import first_existing_path, resolve_existing_path
 from src.common.seed import set_seed
 from src.task_b.dataset import load_task_b_input, load_task_b_gt, load_train_data
 from src.task_b.models import GlobalSpeedModel, TimeBucketSpeedModel, EnsembleModel
@@ -33,13 +33,6 @@ def parse_args() -> argparse.Namespace:
                             "ensemble_with_speed_constraints"],
                    help="Override config method")
     return p.parse_args()
-
-
-def load_config(path: str) -> dict:
-    if Path(path).exists():
-        with open(path) as f:
-            return yaml.safe_load(f)
-    return {}
 
 
 def build_model(method: str, cfg: dict, train_data: list[dict]):
@@ -73,17 +66,22 @@ def main() -> None:
 
     model_path = Path(args.model_path)
 
-    if args.mode == "predict" and model_path.exists():
-        logger.info(f"Loading model from {model_path}")
-        model = EnsembleModel.load(model_path)
+    resolved_model_path = resolve_existing_path(model_path, required=False)
+    if resolved_model_path is None and model_path == Path("outputs/task_b/best_model.pkl"):
+        resolved_model_path = first_existing_path(sorted(Path("outputs/task_b").glob("best_model*.pkl")))
+
+    if args.mode == "predict" and method == "ensemble_with_speed_constraints" and resolved_model_path is not None:
+        logger.info(f"Loading model from {resolved_model_path}")
+        model = EnsembleModel.load(resolved_model_path)
     else:
         # Train model
         train_path = cfg.get("train_data", "data/student_release/data_ds15/train.pkl")
-        if not Path(train_path).exists():
+        resolved_train_path = resolve_existing_path(train_path, required=False)
+        if resolved_train_path is None:
             logger.error(f"Training data not found: {train_path}")
             sys.exit(1)
-        logger.info(f"Loading training data: {train_path}")
-        train_data = load_train_data(train_path)
+        logger.info(f"Loading training data: {resolved_train_path}")
+        train_data = load_train_data(resolved_train_path)
         logger.info(f"Loaded {len(train_data)} training samples")
 
         logger.info(f"Training model: {method}")

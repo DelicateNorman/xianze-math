@@ -3,13 +3,13 @@ import pickle
 from pathlib import Path
 from typing import Any
 
+from src.common.paths import resolve_existing_path
+
 
 def load_pkl(path: str | Path) -> Any:
     """Load a pickle file."""
-    path = Path(path)
-    if not path.exists():
-        raise FileNotFoundError(f"File not found: {path}")
-    with open(path, "rb") as f:
+    resolved = resolve_existing_path(path)
+    with open(resolved, "rb") as f:
         return pickle.load(f)
 
 

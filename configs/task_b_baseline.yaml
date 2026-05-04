@@ -1,7 +1,7 @@
 method: global_speed_baseline
 seed: 42
 
-train_data: data/student_release/data_ds15/train.pkl
+train_data: data/data_ds15/train.pkl
 
 evaluation:
   metrics: [mae, rmse, mape]

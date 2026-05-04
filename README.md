@@ -10,20 +10,34 @@ pip install -r requirements.txt
 ```
 
 ## Data
-Place released data under:
+The code supports either released-data layout:
+```
+data/
+├── data_ds15/
+├── data_org/
+├── task_A_recovery/
+└── task_B_tte/
+```
+or:
 ```
 data/student_release/
+├── data_ds15/
+├── data_org/
+├── task_A_recovery/
+└── task_B_tte/
 ```
-Or symlink:
+
+You can also point scripts to another location without editing files:
 ```bash
-ln -s /path/to/student_release data/student_release
+DATA_ROOT=/path/to/student_release bash scripts/make_task_a_submission.sh
+DATA_ROOT=/path/to/student_release bash scripts/make_task_b_submission.sh
 ```
 
 ## Run Task A Validation
 ```bash
 python -m src.task_a.run_task_a \
-  --input data/student_release/task_A_recovery/val_input_8.pkl \
-  --gt    data/student_release/task_A_recovery/val_gt.pkl \
+  --input data/task_A_recovery/val_input_8.pkl \
+  --gt    data/task_A_recovery/val_gt.pkl \
   --output outputs/submissions/task_a_val_8.pkl \
   --method local_segment_template_interpolation \
   --config configs/task_a_advanced.yaml \
@@ -33,7 +47,7 @@ python -m src.task_a.run_task_a \
 ## Run Task A Prediction
 ```bash
 python -m src.task_a.run_task_a \
-  --input data/student_release/task_A_recovery/test_input_8.pkl \
+  --input data/task_A_recovery/test_input_8.pkl \
   --output outputs/submissions/task_a_test_8.pkl \
   --method local_segment_template_interpolation \
   --config configs/task_a_advanced.yaml \
@@ -43,8 +57,8 @@ python -m src.task_a.run_task_a \
 ## Run Task B Validation
 ```bash
 python -m src.task_b.run_task_b \
-  --input  data/student_release/task_B_tte/val_input.pkl \
-  --gt     data/student_release/task_B_tte/val_gt.pkl \
+  --input  data/task_B_tte/val_input.pkl \
+  --gt     data/task_B_tte/val_gt.pkl \
   --output outputs/submissions/task_b_val.pkl \
   --config configs/task_b_advanced.yaml \
   --mode val
@@ -53,7 +67,7 @@ python -m src.task_b.run_task_b \
 ## Run Task B Prediction
 ```bash
 python -m src.task_b.run_task_b \
-  --input      data/student_release/task_B_tte/test_input.pkl \
+  --input      data/task_B_tte/test_input.pkl \
   --output     outputs/submissions/task_b_test.pkl \
   --model-path outputs/task_b/best_model.pkl \
   --config     configs/task_b_advanced.yaml \
