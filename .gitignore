@@ -13,3 +13,6 @@ data/
 
 # logs
 *.log
+
+# generated model artifacts
+outputs/task_b/best_sampling_residual_ensemble.pkl
