@@ -7,6 +7,8 @@
 ## Environment
 ```bash
 pip install -r requirements.txt
+# macOS only: LightGBM/XGBoost need OpenMP runtime.
+conda install -y -c conda-forge llvm-openmp
 ```
 
 ## Data
@@ -69,7 +71,7 @@ python -m src.task_b.run_task_b \
 python -m src.task_b.run_task_b \
   --input      data/task_B_tte/test_input.pkl \
   --output     outputs/submissions/task_b_test.pkl \
-  --model-path outputs/task_b/best_model.pkl \
+  --model-path outputs/task_b/best_sampling_residual_ensemble.pkl \
   --config     configs/task_b_advanced.yaml \
   --mode predict
 ```
@@ -80,3 +82,6 @@ See `experiments/task_a_results.csv` and `experiments/task_b_results.csv`.
 Latest Task A validation:
 - `local_segment_template_interpolation`: 57.40 m MAE / 83.73 m RMSE on `val_input_8`
 - `local_segment_template_interpolation`: 106.48 m MAE / 152.18 m RMSE on `val_input_16`
+
+Latest Task B validation:
+- `sampling_residual_ensemble`: 16.27 s MAE / 25.25 s RMSE / 1.40% MAPE

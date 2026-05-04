@@ -36,11 +36,17 @@
 | global_speed_baseline | 273.92 | 362.72 | 23.88 | <1s | 全局平均速度 |
 | time_bucket_speed_model | 238.53 | 316.43 | 20.65 | <1s | 按小时分桶速度 |
 | ensemble (GB + residual) | 22.77 | 33.63 | 1.97 | ~3.5min | GradientBoosting 200树 |
-| **ensemble (HistGBM + residual)** | **19.31** | **28.61** | **1.67** | **~34s** | **最终方法** |
+| ensemble (HistGBM + residual) | 19.31 | 28.61 | 1.67 | ~34s | 原最终方法 |
+| n-count median lookup | 21.19 | 33.30 | 1.82 | <1s | 只利用点数结构，作为新残差底座 |
+| HGB + n-count residual + phase features | 16.34 | 25.36 | 1.41 | ~30s | 单模型已超过16.37门槛 |
+| XGB + n-count residual + phase features | 16.32 | 25.31 | 1.40 | ~7s/model | XGBoost残差模型 |
+| **sampling_residual_ensemble** | **16.27** | **25.25** | **1.40** | **~2.5min** | **当前最佳**：点数中位数baseline + 采样相位增强 + HGB/XGB/LGBM残差集成 |
 
 **Key Insights:**
 - num_points × 15.64 ≈ travel_time（采样间隔约15.64s）是最强单特征
-- 残差学习（TB baseline + ML残差）将MAPE从20.65%→1.67%（提升12x）
+- 单纯点数查表可到 21.19s MAE，但需要几何/时间相位特征解释剩余残差
+- 残差学习从“分时段速度baseline”改为“点数中位数baseline”后，学习目标更接近采样端点误差与交通扰动
 - HistGBM比GradientBoosting快6x且效果更好（直方图分箱对连续特征更鲁棒）
 - 新增分位数特征（p25/p50/p75/p90_segment_distance）和slow_segment_ratio有效捕捉速度分布
-- **结论：物理规则baseline + ML残差集成是本项目最强框架**
+- LightGBM/XGBoost 需要 macOS OpenMP 运行库（conda-forge: llvm-openmp），装好后可参与集成
+- **结论：采样结构baseline + phase增强特征 + 多模型残差集成是当前最强框架**

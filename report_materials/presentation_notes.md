@@ -57,14 +57,16 @@
 ```
 完整轨迹 + 出发时间
 → 距离/形状/时间/空间特征提取
-→ 分时段速度模型（基础估计）
-→ GradientBoosting 学习残差
-→ 叠加 → 最终预测
+→ num_points 中位数查表（采样结构 baseline）
+→ timestamp modulo phase + 几何特征
+→ HGB / XGB / LightGBM 学习残差
+→ 加权融合 → 最终预测
 ```
-- 特征重要性图
+- 重点讲清楚：Task B 的标签很大程度由 ds15 采样点数决定，模型应先利用数据生成机制
+- 单模型和集成模型对比
 
 ## 7. Task B 结果（1 min）
-- 方法对比表
+- 方法对比表：global 273.92s → time bucket 238.53s → HistGBM 19.31s → sampling residual ensemble 16.27s
 - 真实时间vs预测时间散点图
 
 ## 8. 误差分析与总结（1 min）

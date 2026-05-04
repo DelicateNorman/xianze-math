@@ -105,3 +105,55 @@ def build_feature_matrix(items: list[dict]) -> tuple[np.ndarray, list[str]]:
     cols = list(rows[0].keys())
     X = np.array([[row[c] for c in cols] for row in rows], dtype=np.float64)
     return X, cols
+
+
+def build_sampling_phase_matrix(
+    items: list[dict],
+    n_baseline: np.ndarray,
+) -> tuple[np.ndarray, list[str]]:
+    """Build timestamp phase and sampling-structure features for Task B.
+
+    The ds15 trajectories are sampled at a near-regular interval, so travel time
+    is strongly tied to point count. Raw timestamp modulo features help capture
+    the residual introduced by sampling phase and endpoint alignment.
+    """
+    if not items:
+        return np.empty((0, 0)), []
+
+    ts = np.array([int(item["departure_timestamp"]) for item in items], dtype=np.int64)
+    n_points = np.array([len(item["coords"]) for item in items], dtype=np.float64)
+    base = np.asarray(n_baseline, dtype=np.float64)
+    day_second = (ts % 86_400).astype(np.float64)
+
+    columns: list[tuple[str, np.ndarray]] = [
+        ("unix_day_second", day_second),
+        ("unix_day_fraction", day_second / 86_400.0),
+        ("num_points_raw", n_points),
+        ("num_segments", n_points - 1.0),
+        ("num_segments_sq", (n_points - 1.0) ** 2),
+        ("n_median_baseline", base),
+        ("n_median_interval", base / np.maximum(n_points - 1.0, 1.0)),
+    ]
+
+    for mod in (2, 3, 4, 5, 6, 7, 10, 12, 15, 20, 30, 60, 120, 300, 600, 900, 1800, 3600):
+        remainder = (ts % mod).astype(np.float64)
+        columns.append((f"ts_mod_{mod}", remainder))
+        if mod <= 120:
+            columns.append((f"ts_mod_{mod}_sin", np.sin(2 * np.pi * remainder / mod)))
+            columns.append((f"ts_mod_{mod}_cos", np.cos(2 * np.pi * remainder / mod)))
+
+    names = [name for name, _ in columns]
+    matrix = np.column_stack([values for _, values in columns]).astype(np.float64)
+    return matrix, names
+
+
+def build_enhanced_feature_matrix(
+    items: list[dict],
+    n_baseline: np.ndarray,
+) -> tuple[np.ndarray, list[str]]:
+    """Build base geometry/time features plus sampling phase features."""
+    base_matrix, base_names = build_feature_matrix(items)
+    phase_matrix, phase_names = build_sampling_phase_matrix(items, n_baseline)
+    if base_matrix.size == 0:
+        return phase_matrix, phase_names
+    return np.column_stack([base_matrix, phase_matrix]), base_names + phase_names

@@ -4,7 +4,7 @@ import numpy as np
 import pickle
 from pathlib import Path
 from src.common.geo import trajectory_length
-from src.task_b.features import build_feature_matrix, GRID_SIZE, _grid_xy
+from src.task_b.features import build_feature_matrix, build_enhanced_feature_matrix, GRID_SIZE, _grid_xy
 from src.common.time_features import departure_hour
 
 
@@ -217,5 +217,161 @@ class EnsembleModel:
 
     @staticmethod
     def load(path: str | Path) -> "EnsembleModel":
+        with open(path, "rb") as f:
+            return pickle.load(f)
+
+
+class SamplingResidualEnsembleModel:
+    """Point-count baseline plus multi-model residual ensemble.
+
+    Task B travel time is strongly constrained by the number of ds15 sampled
+    points. This model first predicts the median travel time for each point
+    count, then learns the remaining sampling/traffic residual with enhanced
+    geometry and timestamp phase features.
+    """
+
+    def __init__(self, min_travel_time: float = 30.0,
+                 weights: dict[str, float] | None = None) -> None:
+        self.min_travel_time = min_travel_time
+        self.weights = weights or {
+            "hgb_d8": 0.3,
+            "xgb_a": 0.1,
+            "xgb_b": 0.3,
+            "lgbm_a": 0.3,
+        }
+        self.n_median_table: dict[int, float] = {}
+        self.fallback_interval: float = 15.54
+        self.feature_names: list[str] = []
+        self.models: dict[str, object] = {}
+
+    def _fit_count_baseline(self, train_data: list[dict]) -> None:
+        n_points = np.array([len(item["coords"]) for item in train_data], dtype=np.int64)
+        targets = np.array([item["travel_time"] for item in train_data], dtype=np.float64)
+        self.fallback_interval = float(np.median(targets / np.maximum(n_points - 1, 1)))
+        self.n_median_table = {
+            int(n): float(np.median(targets[n_points == n]))
+            for n in sorted(set(n_points.tolist()))
+        }
+
+    def _count_baseline(self, items: list[dict]) -> np.ndarray:
+        preds = []
+        for item in items:
+            n = len(item["coords"])
+            preds.append(self.n_median_table.get(n, (n - 1) * self.fallback_interval))
+        return np.array(preds, dtype=np.float64)
+
+    def _make_model(self, name: str):
+        if name == "hgb_d8":
+            from sklearn.ensemble import HistGradientBoostingRegressor
+            return HistGradientBoostingRegressor(
+                max_iter=1000,
+                max_leaf_nodes=63,
+                max_depth=8,
+                learning_rate=0.03,
+                l2_regularization=0.02,
+                random_state=42,
+            )
+        if name == "hgb_d6":
+            from sklearn.ensemble import HistGradientBoostingRegressor
+            return HistGradientBoostingRegressor(
+                max_iter=1200,
+                max_leaf_nodes=31,
+                max_depth=6,
+                learning_rate=0.025,
+                l2_regularization=0.01,
+                random_state=42,
+            )
+        if name == "xgb_a":
+            from xgboost import XGBRegressor
+            return XGBRegressor(
+                n_estimators=1400,
+                learning_rate=0.025,
+                max_depth=5,
+                min_child_weight=5,
+                subsample=0.9,
+                colsample_bytree=0.9,
+                reg_lambda=1.0,
+                objective="reg:squarederror",
+                tree_method="hist",
+                random_state=42,
+                n_jobs=-1,
+            )
+        if name == "xgb_b":
+            from xgboost import XGBRegressor
+            return XGBRegressor(
+                n_estimators=1200,
+                learning_rate=0.03,
+                max_depth=6,
+                min_child_weight=8,
+                subsample=0.9,
+                colsample_bytree=0.9,
+                reg_lambda=1.5,
+                objective="reg:squarederror",
+                tree_method="hist",
+                random_state=7,
+                n_jobs=-1,
+            )
+        if name == "lgbm_a":
+            from lightgbm import LGBMRegressor
+            return LGBMRegressor(
+                n_estimators=2500,
+                learning_rate=0.02,
+                num_leaves=63,
+                max_depth=-1,
+                min_child_samples=30,
+                subsample=0.9,
+                colsample_bytree=0.9,
+                reg_alpha=0.01,
+                reg_lambda=0.05,
+                random_state=42,
+                n_jobs=-1,
+                verbose=-1,
+            )
+        raise ValueError(f"Unknown residual model: {name}")
+
+    def fit(self, train_data: list[dict], config: dict | None = None) -> "SamplingResidualEnsembleModel":
+        config = config or {}
+        cfg = config.get("sampling_residual_ensemble", {})
+        self.weights = cfg.get("weights", self.weights)
+        self.min_travel_time = config.get("constraints", {}).get("min_travel_time", self.min_travel_time)
+
+        self._fit_count_baseline(train_data)
+        baseline = self._count_baseline(train_data)
+        targets = np.array([item["travel_time"] for item in train_data], dtype=np.float64)
+        residuals = targets - baseline
+        X, self.feature_names = build_enhanced_feature_matrix(train_data, baseline)
+
+        self.models = {}
+        for name, weight in self.weights.items():
+            if weight <= 0:
+                continue
+            model = self._make_model(name)
+            model.fit(X, residuals)
+            self.models[name] = model
+        return self
+
+    def predict(self, items: list[dict]) -> np.ndarray:
+        baseline = self._count_baseline(items)
+        X, _ = build_enhanced_feature_matrix(items, baseline)
+        residual = np.zeros(len(items), dtype=np.float64)
+        total_weight = 0.0
+        for name, model in self.models.items():
+            weight = float(self.weights.get(name, 0.0))
+            if weight <= 0:
+                continue
+            residual += weight * model.predict(X)
+            total_weight += weight
+        if total_weight > 0:
+            residual /= total_weight
+        return np.maximum(baseline + residual, self.min_travel_time)
+
+    def save(self, path: str | Path) -> None:
+        path = Path(path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "wb") as f:
+            pickle.dump(self, f)
+
+    @staticmethod
+    def load(path: str | Path) -> "SamplingResidualEnsembleModel":
         with open(path, "rb") as f:
             return pickle.load(f)

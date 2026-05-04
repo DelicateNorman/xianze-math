@@ -6,3 +6,5 @@ matplotlib>=3.7
 seaborn>=0.12
 pyyaml>=6.0
 tqdm>=4.65
+lightgbm>=4.6
+xgboost>=3.2

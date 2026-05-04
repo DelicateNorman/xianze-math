@@ -3,3 +3,4 @@ experiment_id,datetime,method,mae_second,rmse_second,mape_percent,config,notes
 20260426_185819,2026-04-26T18:58:19.350471,time_bucket_speed_model,238.53,316.43,20.65,configs/task_b_baseline.yaml,
 20260426_190204,2026-04-26T19:02:04.859653,ensemble_with_speed_constraints,22.77,33.63,1.97,configs/task_b_advanced.yaml,
 20260426_193431,2026-04-26T19:34:31.683934,ensemble_with_speed_constraints,19.31,28.61,1.67,configs/task_b_advanced.yaml,
+20260504_150357,2026-05-04T15:03:57.534144,sampling_residual_ensemble,16.27,25.25,1.40,configs/task_b_advanced.yaml,

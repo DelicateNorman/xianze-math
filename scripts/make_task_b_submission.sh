@@ -51,7 +51,7 @@ VAL_INPUT="${TASK_B_VAL_INPUT:-$(find_file "$TASK_B_DIR" "val_input.pkl" "*val*i
 VAL_GT="${TASK_B_VAL_GT:-$(find_file "$TASK_B_DIR" "val_gt.pkl" "*gt*.pkl")}"
 TEST_INPUT="${TASK_B_TEST_INPUT:-$(find_file "$TASK_B_DIR" "test_input.pkl" "*test*input*.pkl")}"
 
-MODEL_PATH="outputs/task_b/best_model.pkl"
+MODEL_PATH="${TASK_B_MODEL_PATH:-outputs/task_b/best_sampling_residual_ensemble.pkl}"
 CONFIG="configs/task_b_advanced.yaml"
 OUT_DIR="outputs/submissions"
 

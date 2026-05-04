@@ -1,4 +1,4 @@
-method: ensemble_with_speed_constraints
+method: sampling_residual_ensemble
 seed: 42
 
 train_data: data/data_ds15/train.pkl
@@ -19,6 +19,13 @@ residual_learning:
 ensemble:
   w_time_bucket: 0.2
   w_regression: 0.8
+
+sampling_residual_ensemble:
+  weights:
+    hgb_d8: 0.3
+    xgb_a: 0.1
+    xgb_b: 0.3
+    lgbm_a: 0.3
 
 constraints:
   min_travel_time: 30       # seconds

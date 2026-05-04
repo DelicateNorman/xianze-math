@@ -421,3 +421,50 @@ local_segment_template_interpolation with dense local template index
 如果继续追求指标，可全量复核 seed=7；也可尝试多 seed 模板库集成，但需要评估课堂测试运行时间。
 
 ---
+
+## Experiment 2026-05-04 15:03 — Task B Sampling Residual Ensemble
+
+### Task
+Task B
+
+### Method
+sampling_residual_ensemble
+
+### Config
+- config file: configs/task_b_advanced.yaml
+- baseline: median travel_time lookup by num_points
+- enhanced features: existing geometry/time features + timestamp modulo phase features + n-count baseline features
+- residual models:
+  - hgb_d8 weight 0.3
+  - xgb_a weight 0.1
+  - xgb_b weight 0.3
+  - lgbm_a weight 0.3
+- min_travel_time: 30s
+
+### Result
+- MAE=16.27 s
+- RMSE=25.25 s
+- MAPE=1.40%
+- Previous best HistGBM residual: MAE=19.31 s, RMSE=28.61 s, MAPE=1.67%
+
+### Observations
+- 单独使用点数中位数查表：MAE=21.19s，说明 ds15 采样点数是最强结构性信号。
+- 以点数中位数作为 baseline 后，模型只学习剩余残差，比原来的 time_bucket baseline 更贴近任务生成机制。
+- 加入 timestamp modulo phase 特征后，HistGBM 单模型达到 MAE=16.34s，已经略优于 16.37s 参考门槛。
+- XGBoost 单模型约 16.32s，LightGBM 约 16.33s；加权集成进一步降到 16.27s。
+- LightGBM/XGBoost 在 macOS 需要 OpenMP 运行库，已通过 `conda install -c conda-forge llvm-openmp` 解决。
+
+### Failed / Limited Attempts
+- 常数采样间隔模型最好约 21.47s MAE，不能达到当前模型水平。
+- n-count lookup 的 val oracle 也只有约 20.94s MAE，说明点数本身不足以解释所有误差。
+- ExtraTrees 残差模型 MAE=16.58s，弱于 HGB/XGB/LGBM。
+- LightGBM direct prediction 弱于 residual prediction，说明点数 baseline 残差化是有效设计。
+
+### Analysis for Report/PPT
+- 这是 Task B 的新核心叙事：先利用数据生成机制中的采样结构，再用模型学习交通和采样相位残差。
+- 相比“距离/速度规则 + ML残差”，该方法更贴近任务输入和标签的构造关系。
+
+### Next Step
+可以继续尝试 residual 分类/离散偏移校准，或对 XGB/LGBM 做更细的权重和超参搜索。
+
+---

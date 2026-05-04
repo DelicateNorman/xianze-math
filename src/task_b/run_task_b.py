@@ -12,7 +12,7 @@ from src.common.logging_utils import get_logger
 from src.common.paths import first_existing_path, resolve_existing_path
 from src.common.seed import set_seed
 from src.task_b.dataset import load_task_b_input, load_task_b_gt, load_train_data
-from src.task_b.models import GlobalSpeedModel, TimeBucketSpeedModel, EnsembleModel
+from src.task_b.models import GlobalSpeedModel, TimeBucketSpeedModel, EnsembleModel, SamplingResidualEnsembleModel
 from src.task_b.predict import predict_task_b
 from src.task_b.evaluate import evaluate_task_b
 
@@ -24,13 +24,14 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--input", required=True, help="Input pkl file")
     p.add_argument("--output", required=True, help="Output pkl file")
     p.add_argument("--gt", default=None, help="Ground truth pkl (val mode)")
-    p.add_argument("--model-path", default="outputs/task_b/best_model.pkl",
+    p.add_argument("--model-path", default=None,
                    help="Path to save/load trained model")
     p.add_argument("--config", default="configs/task_b_advanced.yaml")
     p.add_argument("--mode", choices=["val", "predict", "train"], default="val")
     p.add_argument("--method", default=None,
                    choices=["global_speed_baseline", "time_bucket_speed_model",
-                            "ensemble_with_speed_constraints"],
+                            "ensemble_with_speed_constraints",
+                            "sampling_residual_ensemble"],
                    help="Override config method")
     return p.parse_args()
 
@@ -42,6 +43,11 @@ def build_model(method: str, cfg: dict, train_data: list[dict]):
         model = TimeBucketSpeedModel(
             min_samples=cfg.get("speed_model", {}).get("min_samples_per_bucket", 5)
         ).fit(train_data)
+    elif method == "sampling_residual_ensemble":
+        model = SamplingResidualEnsembleModel(
+            min_travel_time=cfg.get("constraints", {}).get("min_travel_time", 30.0),
+            weights=cfg.get("sampling_residual_ensemble", {}).get("weights"),
+        ).fit(train_data, cfg)
     else:  # ensemble
         model = EnsembleModel(
             w_time_bucket=cfg.get("ensemble", {}).get("w_time_bucket", 0.2),
@@ -64,15 +70,31 @@ def main() -> None:
     inputs = load_task_b_input(args.input)
     logger.info(f"Loaded {len(inputs)} trajectories")
 
-    model_path = Path(args.model_path)
+    if args.model_path is None:
+        default_model_path = (
+            "outputs/task_b/best_sampling_residual_ensemble.pkl"
+            if method == "sampling_residual_ensemble"
+            else "outputs/task_b/best_model.pkl"
+        )
+        model_path = Path(default_model_path)
+    else:
+        model_path = Path(args.model_path)
 
     resolved_model_path = resolve_existing_path(model_path, required=False)
     if resolved_model_path is None and model_path == Path("outputs/task_b/best_model.pkl"):
         resolved_model_path = first_existing_path(sorted(Path("outputs/task_b").glob("best_model*.pkl")))
 
-    if args.mode == "predict" and method == "ensemble_with_speed_constraints" and resolved_model_path is not None:
+    if args.mode == "predict" and resolved_model_path is not None:
         logger.info(f"Loading model from {resolved_model_path}")
-        model = EnsembleModel.load(resolved_model_path)
+        if method == "sampling_residual_ensemble":
+            model = SamplingResidualEnsembleModel.load(resolved_model_path)
+            if not isinstance(model, SamplingResidualEnsembleModel):
+                logger.error(
+                    f"Model file {resolved_model_path} is not a SamplingResidualEnsembleModel"
+                )
+                sys.exit(1)
+        else:
+            model = EnsembleModel.load(resolved_model_path)
     else:
         # Train model
         train_path = cfg.get("train_data", "data/student_release/data_ds15/train.pkl")
