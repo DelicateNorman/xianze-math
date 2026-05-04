@@ -468,3 +468,53 @@ sampling_residual_ensemble
 可以继续尝试 residual 分类/离散偏移校准，或对 XGB/LGBM 做更细的权重和超参搜索。
 
 ---
+
+## Experiment 2026-05-04 15:26 — Task B KNN Residual Blend
+
+### Task
+Task B
+
+### Method
+sampling_residual_ensemble + KNN residual correction
+
+### Config
+- base model: previous sampling residual ensemble
+- KNN feature space: enhanced Task B features after point-count median baseline
+- scaler: RobustScaler
+- neighbors: 233
+- inverse-distance power: 2.0
+- blend weight: 0.16 KNN prediction / 0.84 tree ensemble prediction
+- training data: `data/data_ds15/train.pkl`
+- prediction inputs: Task B `coords` and `departure_timestamp`
+
+### Result
+- MAE=16.23 s
+- RMSE=25.31 s
+- MAPE=1.40%
+- Previous sampling residual ensemble: MAE=16.27 s, RMSE=25.25 s
+
+### Observations
+- KNN residual correction alone is not competitive: best standalone KNN residual result was about MAE=17.44s.
+- A small KNN blend is still useful because local-neighbor residual errors are partly complementary to HGB/XGB/LGBM residual predictions.
+- Best quick blend in the experiment was `k=233, weight=0.16`, with MAE=16.2275s.
+- RMSE increased slightly relative to the pure tree ensemble, so this is primarily an MAE-focused improvement.
+
+### Failed / Limited Attempts
+- Residual median calibration tables by point count, timestamp phase, and route grid only reached about MAE=21.10s, so nonparametric tables cannot replace learned residual models.
+- Target transforms such as residual-per-segment, sqrt-normalized residual, direct interval prediction, and log interval prediction did not beat the KNN blend. Best target-transform blend was MAE=16.2848s.
+- Route-shape landmark features with 8/16 sampled points reached about MAE=16.32s/16.30s and did not improve the KNN blend model.
+- Discrete residual classification is still running/under exploration, but the first very fine 1-second class setup failed because many residual classes had only one sample.
+
+### Leakage Check
+- A data linkage probe confirmed that local `data/data_ds15/val.pkl` includes the timestamps corresponding to `task_B_tte/val_gt.pkl`.
+- This file is therefore not used for model training, lookup, or feature construction. It is only useful as a leakage-risk diagnostic.
+- The committed Task B method uses only the training split and the official Task B input fields available at prediction time.
+
+### Analysis for Report/PPT
+- The added KNN component gives a clean engineering story: global structure is handled by the point-count baseline and tree residual ensemble, while local residual quirks are corrected by nearest neighbors in the same enhanced feature space.
+- Because the KNN branch has small weight and uses only train residuals, it is less likely to dominate or memorize validation-specific artifacts.
+
+### Next Step
+To approach MAE around 15s, the next high-value direction is not more scalar weight search but stronger route/history features: route-segment speed priors learned from train, OOF stacking, or map/road-network-informed features.
+
+---

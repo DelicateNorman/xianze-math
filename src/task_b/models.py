@@ -243,6 +243,13 @@ class SamplingResidualEnsembleModel:
         self.fallback_interval: float = 15.54
         self.feature_names: list[str] = []
         self.models: dict[str, object] = {}
+        self.knn_enabled: bool = False
+        self.knn_blend_weight: float = 0.0
+        self.knn_neighbors: int = 233
+        self.knn_power: float = 2.0
+        self.knn_scaler = None
+        self.knn_model = None
+        self.knn_residuals: np.ndarray | None = None
 
     def _fit_count_baseline(self, train_data: list[dict]) -> None:
         n_points = np.array([len(item["coords"]) for item in train_data], dtype=np.int64)
@@ -333,6 +340,11 @@ class SamplingResidualEnsembleModel:
         config = config or {}
         cfg = config.get("sampling_residual_ensemble", {})
         self.weights = cfg.get("weights", self.weights)
+        knn_cfg = cfg.get("knn_residual_blend", {})
+        self.knn_enabled = bool(knn_cfg.get("enabled", False))
+        self.knn_blend_weight = float(knn_cfg.get("weight", 0.0))
+        self.knn_neighbors = int(knn_cfg.get("neighbors", 233))
+        self.knn_power = float(knn_cfg.get("power", 2.0))
         self.min_travel_time = config.get("constraints", {}).get("min_travel_time", self.min_travel_time)
 
         self._fit_count_baseline(train_data)
@@ -348,6 +360,20 @@ class SamplingResidualEnsembleModel:
             model = self._make_model(name)
             model.fit(X, residuals)
             self.models[name] = model
+
+        if self.knn_enabled and self.knn_blend_weight > 0:
+            from sklearn.neighbors import NearestNeighbors
+            from sklearn.preprocessing import RobustScaler
+
+            self.knn_scaler = RobustScaler()
+            X_scaled = self.knn_scaler.fit_transform(X)
+            self.knn_model = NearestNeighbors(
+                n_neighbors=min(self.knn_neighbors, len(train_data)),
+                algorithm="auto",
+                n_jobs=-1,
+            )
+            self.knn_model.fit(X_scaled)
+            self.knn_residuals = residuals.astype(np.float64, copy=True)
         return self
 
     def predict(self, items: list[dict]) -> np.ndarray:
@@ -363,7 +389,26 @@ class SamplingResidualEnsembleModel:
             total_weight += weight
         if total_weight > 0:
             residual /= total_weight
-        return np.maximum(baseline + residual, self.min_travel_time)
+        tree_prediction = np.maximum(baseline + residual, self.min_travel_time)
+
+        if (
+            self.knn_enabled
+            and self.knn_blend_weight > 0
+            and self.knn_model is not None
+            and self.knn_scaler is not None
+            and self.knn_residuals is not None
+        ):
+            X_scaled = self.knn_scaler.transform(X)
+            distances, indices = self.knn_model.kneighbors(X_scaled, return_distance=True)
+            neighbor_residuals = self.knn_residuals[indices]
+            weights = 1.0 / np.maximum(distances, 1e-6) ** self.knn_power
+            weights = weights / np.maximum(weights.sum(axis=1, keepdims=True), 1e-12)
+            knn_residual = np.sum(weights * neighbor_residuals, axis=1)
+            knn_prediction = np.maximum(baseline + knn_residual, self.min_travel_time)
+            w = min(max(self.knn_blend_weight, 0.0), 1.0)
+            return (1.0 - w) * tree_prediction + w * knn_prediction
+
+        return tree_prediction
 
     def save(self, path: str | Path) -> None:
         path = Path(path)

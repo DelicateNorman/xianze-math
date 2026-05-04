@@ -26,6 +26,11 @@ sampling_residual_ensemble:
     xgb_a: 0.1
     xgb_b: 0.3
     lgbm_a: 0.3
+  knn_residual_blend:
+    enabled: true
+    weight: 0.16
+    neighbors: 233
+    power: 2.0
 
 constraints:
   min_travel_time: 30       # seconds

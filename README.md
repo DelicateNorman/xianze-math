@@ -84,4 +84,4 @@ Latest Task A validation:
 - `local_segment_template_interpolation`: 106.48 m MAE / 152.18 m RMSE on `val_input_16`
 
 Latest Task B validation:
-- `sampling_residual_ensemble`: 16.27 s MAE / 25.25 s RMSE / 1.40% MAPE
+- `sampling_residual_ensemble` + KNN residual blend: 16.23 s MAE / 25.31 s RMSE / 1.40% MAPE

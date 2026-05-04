@@ -250,21 +250,25 @@ Task B 的输入轨迹来自近似 15 秒间隔的降采样数据，因此行程
 4. 增加点数 baseline 特征：baseline、baseline interval、num_segments 等。
 5. 训练 HGB / XGBoost / LightGBM 模型预测 `true_time - n_count_baseline`。
 6. 用验证集权重融合残差模型，输出 `baseline + weighted_residual`。
+7. 追加一个 KNN residual correction：在增强特征空间中用 RobustScaler + nearest neighbors 估计局部残差，再以小权重与树模型集成结果融合。
 
 **验证结果**
 - 点数中位数查表：MAE 21.19s，RMSE 33.30s，MAPE 1.82%
 - HGB 单模型残差：MAE 16.34s，RMSE 25.36s
 - XGB 单模型残差：MAE 16.32s，RMSE 25.31s
 - 加权残差集成：MAE 16.27s，RMSE 25.25s，MAPE 1.40%
+- 加权残差集成 + KNN residual blend：MAE 16.23s，RMSE 25.31s，MAPE 1.40%
 
 **为什么这样设计**
 原模型把 `num_points * 15.64` 当作普通特征交给树模型学习，但没有显式利用采样生成机制。新方法把“点数决定大部分行程时间”作为结构化 baseline，让模型专注于采样相位、速度变化、路径复杂度带来的小残差。
 
 **优点**
 - 明确利用数据生成机制，可解释性强
-- 比原 HistGBM residual 从 19.31s MAE 降到 16.27s
+- 比原 HistGBM residual 从 19.31s MAE 降到 16.23s
 - HGB/XGB/LGBM 多模型误差互补，简单加权有收益
+- KNN 局部残差校正与树模型有弱互补，可进一步降低 MAE
 
 **局限性**
 - 依赖 LightGBM/XGBoost 和 OpenMP 运行库
 - 相位特征和权重是基于验证集实验选择，测试分布变化时需要观察稳定性
+- `data_ds15/val.pkl` 和 `data_org/val.pkl` 含验证轨迹 timestamps，不能作为 Task B 方法输入或查表来源；这里只使用训练集和 Task B 输入给定字段。

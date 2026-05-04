@@ -60,13 +60,15 @@
 → num_points 中位数查表（采样结构 baseline）
 → timestamp modulo phase + 几何特征
 → HGB / XGB / LightGBM 学习残差
-→ 加权融合 → 最终预测
+→ 加权融合
+→ KNN 局部残差轻量校正 → 最终预测
 ```
 - 重点讲清楚：Task B 的标签很大程度由 ds15 采样点数决定，模型应先利用数据生成机制
 - 单模型和集成模型对比
+- 强调不使用 `data_ds15/val.pkl` / `data_org/val.pkl` 的 timestamps 查验证答案，课堂 test 只依赖 Task B 输入字段
 
 ## 7. Task B 结果（1 min）
-- 方法对比表：global 273.92s → time bucket 238.53s → HistGBM 19.31s → sampling residual ensemble 16.27s
+- 方法对比表：global 273.92s → time bucket 238.53s → HistGBM 19.31s → sampling residual ensemble 16.27s → KNN blend 16.23s
 - 真实时间vs预测时间散点图
 
 ## 8. 误差分析与总结（1 min）
