@@ -290,3 +290,41 @@ local_segment_template_interpolation (wide index)
 继续尝试更强的局部特征表示，例如方向归一化残差、近邻距离自适应 alpha、以及按空间网格限制候选片段。
 
 ---
+
+## Experiment 2026-05-04 14:21 — Task A Fine Search on Template Neighbors
+
+### Task
+Task A
+
+### Method
+local_segment_template_interpolation (wide index, top_k=12)
+
+### Config
+- config file: configs/task_a_advanced.yaml
+- max_segments_per_span: 500000
+- samples_per_traj_span: 8
+- top_k: 12
+- alpha: 1.0
+- max_feature_distance: 2.5
+
+### Result
+- val_input_8: MAE=61.66 m, RMSE=89.21 m
+- val_input_16: MAE=115.73 m, RMSE=163.61 m
+- Compared with top_k=20 wide index:
+  - 1/8 MAE 62.03 -> 61.66 (-0.6%), RMSE 89.07 -> 89.21 (+0.2%)
+  - 1/16 MAE 116.50 -> 115.73 (-0.7%), RMSE 163.59 -> 163.61 (+0.0%)
+
+### Observations
+- 子集细搜索比较了 top_k in {8,12,15,20,25,30} 和 alpha in {0.9,1.0,1.1,1.2}。
+- top_k=12, alpha=1.0 的 MAE 最优；top_k 继续增大容易混入局部形状不相似的片段。
+- alpha>1 会放大历史残差噪声，MAE/RMSE 都明显变差。
+- top_k=12 的 RMSE 相比 top_k=20 仅有 0.1m 量级波动，MAE 改善更稳定，因此采纳为默认配置。
+
+### Analysis for Report/PPT
+- 这个实验可以支撑“近邻数量不是越大越好”：局部模板依赖高质量相似片段，过多邻居会稀释局部道路形状先验。
+- 可作为 Task A 参数消融补充，不需要占主要篇幅。
+
+### Next Step
+探索是否可以通过方向归一化、空间网格约束或近邻距离自适应权重进一步降低 RMSE。
+
+---

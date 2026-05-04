@@ -24,7 +24,7 @@ local_segment_template:
   max_segments_per_span: 500000
   samples_per_traj_span: 8
   min_displacement_m: 20.0
-  top_k: 20
+  top_k: 12
   max_feature_distance: 2.5
   alpha: 1.0
 

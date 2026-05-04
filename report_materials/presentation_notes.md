@@ -44,7 +44,8 @@
 - PCHIP: 87.59m / 163.53m MAE
 - local segment template: 64.73m / 120.73m MAE
 - wide local segment template: 62.03m / 116.50m MAE
-- 可讲消融：扩大训练片段覆盖后，检索到同区域/同方向局部道路形状的概率更高；盲目增大 top-k 反而会混入不相似片段
+- wide local segment template (top_k=12): 61.66m / 115.73m MAE
+- 可讲消融：扩大训练片段覆盖后，检索到同区域/同方向局部道路形状的概率更高；盲目增大 top-k 或 alpha 反而会混入/放大不相似片段
 误差分布图（见 outputs/figures/）
 
 ## 6. Task B 方法（2 min）

@@ -129,7 +129,7 @@
 3. 保存真实片段相对直线插值的 residual
 4. 对待恢复轨迹的每个缺口，构造特征：局部 midpoint + endpoint displacement
 5. 用 KDTree 检索 top-k 相似训练片段
-6. 按特征距离加权平均 residual
+6. 用 top_k=12 的高相似片段按特征距离加权平均 residual
 7. final = linear_gap + alpha * mean_residual
 8. 已知点坐标原值回写
 
@@ -144,11 +144,12 @@
   - 1/8：MAE 64.73m，RMSE 92.02m
   - 1/16：MAE 120.73m，RMSE 168.34m
 - 宽索引（50万片段/span，8 samples/traj/span）：
-  - 1/8：MAE 62.03m，RMSE 89.07m
-  - 1/16：MAE 116.50m，RMSE 163.59m
+- 宽索引 + top_k=12：
+  - 1/8：MAE 61.66m，RMSE 89.21m
+  - 1/16：MAE 115.73m，RMSE 163.61m
 
 **参数消融结论**
-扩大训练片段覆盖比盲目增大 top-k 更有效。top-k=20、alpha=1.0 在验证集上最优；top-k=40 会混入更多局部形状不够相似的片段，导致误差回升。
+扩大训练片段覆盖比盲目增大 top-k 更有效。top-k=12、alpha=1.0 在验证集上 MAE 最优；top-k 继续增大会混入更多局部形状不够相似的片段，alpha>1 会放大残差噪声。
 
 **优点**
 - 比 Catmull-Rom 和 PCHIP 明显更低误差
