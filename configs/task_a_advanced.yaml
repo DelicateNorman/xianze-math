@@ -21,8 +21,8 @@ knn_template:
 
 local_segment_template:
   spans: [8, 16]
-  max_segments_per_span: 250000
-  samples_per_traj_span: 3
+  max_segments_per_span: 500000
+  samples_per_traj_span: 8
   min_displacement_m: 20.0
   top_k: 20
   max_feature_distance: 2.5

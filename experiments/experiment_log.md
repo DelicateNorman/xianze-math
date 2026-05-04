@@ -250,3 +250,43 @@ global_speed_baseline → time_bucket_speed_model → ensemble_with_speed_constr
 生成可视化图表（EDA、误差分布、TTE散点图）；更新消融表
 
 ---
+
+## Experiment 2026-05-04 14:16–14:17 — Task A Wide Local Segment Index
+
+### Task
+Task A
+
+### Method
+local_segment_template_interpolation (wide index)
+
+### Config
+- config file: configs/task_a_advanced.yaml
+- train data: data/data_ds15/train.pkl
+- spans: [8, 16]
+- max_segments_per_span: 500000
+- samples_per_traj_span: 8
+- top_k: 20
+- alpha: 1.0
+- fallback: PCHIP for unsupported/boundary spans
+
+### Result
+- val_input_8: MAE=62.03 m, RMSE=89.07 m
+- val_input_16: MAE=116.50 m, RMSE=163.59 m
+- Compared with previous local segment template:
+  - 1/8 MAE 64.73 -> 62.03 (-4.2%), RMSE 92.02 -> 89.07 (-3.2%)
+  - 1/16 MAE 120.73 -> 116.50 (-3.5%), RMSE 168.34 -> 163.59 (-2.8%)
+
+### Observations
+- 子集参数搜索显示，主要收益来自扩大训练片段覆盖，而不是简单增大 top_k。
+- top_k=20, alpha=1.0 在验证子集上 MAE 最低；top_k=40 会引入更多不够相似的片段，误差上升。
+- 该改进仍只使用 data_ds15/train.pkl，不使用 data_org 或 val_gt 查表。
+- 运行时间仍然适合课堂现场：单个验证文件约十几秒级，代价主要在 KDTree 索引构建。
+
+### Analysis for Report/PPT
+- 可以把该实验解释为“历史先验的覆盖度消融”：局部模板方法有效，但检索库覆盖不足会限制收益。
+- 宽索引提升说明，同一 span 下的局部道路形状存在稀疏性，需要更充分采样训练片段。
+
+### Next Step
+继续尝试更强的局部特征表示，例如方向归一化残差、近邻距离自适应 alpha、以及按空间网格限制候选片段。
+
+---
