@@ -129,7 +129,7 @@
 3. 保存真实片段相对直线插值的 residual
 4. 对待恢复轨迹的每个缺口，构造特征：局部 midpoint + endpoint displacement
 5. 用 KDTree 检索 top-k 相似训练片段
-6. 用 top_k=12 的高相似片段按特征距离加权平均 residual
+6. 用 top_k=16 的高相似片段按特征距离加权平均 residual
 7. 根据最近邻特征距离计算 confidence，低置信缺口更多回退到 PCHIP
 8. final = confidence * (linear_gap + alpha * mean_residual) + (1-confidence) * pchip_gap
 9. 已知点坐标原值回写
@@ -151,9 +151,14 @@
 - 宽索引 + top_k=12 + 自适应置信融合：
   - 1/8：MAE 61.51m，RMSE 88.59m
   - 1/16：MAE 115.37m，RMSE 162.00m
+- 稠密索引（200万片段/span，20 samples/traj/span）+ 自适应置信融合：
+  - 1/8：MAE 57.40m，RMSE 83.73m
+  - 1/16：MAE 106.48m，RMSE 152.18m
 
 **参数消融结论**
 扩大训练片段覆盖比盲目增大 top-k 更有效。top-k=12、alpha=1.0 在验证集上 MAE 最优；top-k 继续增大会混入更多局部形状不够相似的片段，alpha>1 会放大残差噪声。
+
+进一步扩大到 200 万片段/span 后，最优 top_k 从 12 增至 16，说明模板库更密时可以安全地使用更多高质量近邻。seed 消融显示 seed=7 在子集上略优，但当前默认保留已全量验证的 seed=42。
 
 **置信融合结论**
 最近邻特征距离可以衡量历史模板可信度。线性置信融合（threshold=1.2）在低置信缺口保留更多 PCHIP fallback，减少模板误匹配带来的尾部误差，因此 RMSE 改善更明显。
@@ -166,7 +171,7 @@
 **局限性**
 - 需要训练集路径可用
 - 当前配置重点优化主缺口 span=8/16，边界短缺口交给 PCHIP
-- 宽索引会增加内存和索引构建时间，但仍在课堂现场可接受范围内
+- 稠密索引会增加内存和索引构建时间，但在 32GB 内存机器上仍可接受
 - confidence_threshold 是验证集调参结果，测试集分布差异较大时需要保留 PCHIP fallback 兜底
 - 如果测试集空间分布和训练集差异很大，模板收益会下降
 

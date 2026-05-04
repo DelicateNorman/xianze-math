@@ -78,5 +78,5 @@ python -m src.task_b.run_task_b \
 See `experiments/task_a_results.csv` and `experiments/task_b_results.csv`.
 
 Latest Task A validation:
-- `local_segment_template_interpolation`: 61.51 m MAE / 88.59 m RMSE on `val_input_8`
-- `local_segment_template_interpolation`: 115.37 m MAE / 162.00 m RMSE on `val_input_16`
+- `local_segment_template_interpolation`: 57.40 m MAE / 83.73 m RMSE on `val_input_8`
+- `local_segment_template_interpolation`: 106.48 m MAE / 152.18 m RMSE on `val_input_16`

@@ -13,6 +13,7 @@
 | **local_segment_template_interpolation (wide index)** | **62.03** | **89.07** | **116.50** | **163.59** | **2026-05-04改进**：扩大训练片段索引覆盖 |
 | **local_segment_template_interpolation (wide index, top_k=12)** | **61.66** | **89.21** | **115.73** | **163.61** | **当前默认**：更低MAE，RMSE基本持平 |
 | **local_segment_template_interpolation (adaptive confidence blend)** | **61.51** | **88.59** | **115.37** | **162.00** | **当前最佳**：按近邻距离自适应融合PCHIP fallback |
+| **local_segment_template_interpolation (dense 2M templates)** | **57.40** | **83.73** | **106.48** | **152.18** | **当前最佳**：大规模局部模板库 + 置信融合 |
 
 **Key Insights:**
 - 速度平滑对本数据集无效：15s采样下线性插值后基本无超速段
@@ -24,7 +25,9 @@
 - 扩大局部片段索引覆盖（max_segments_per_span 25万→50万，samples_per_traj_span 3→8）后，最近邻检索更容易找到同区域/同方向的局部道路形状，1/8 MAE 64.73→62.03，1/16 MAE 120.73→116.50
 - 细搜索显示 top_k=12 比 top_k=20 的 MAE 更低（1/8: 62.03→61.66，1/16: 116.50→115.73），RMSE只小幅波动；alpha>1 会明显放大噪声，不采纳
 - 自适应置信融合按最近邻特征距离决定历史残差权重，近邻不够相似时回退更多 PCHIP，可同时降低 MAE 和 RMSE
-- **结论：Task A最终采用PCHIP fallback + wide local segment template residual correction + adaptive confidence blend**
+- 将局部模板索引进一步扩展到 200 万片段/span 后，1/16 MAE 从 115.37 降到 106.48，说明该方法仍处于“历史局部道路形状覆盖不足”阶段，计算换覆盖能带来实质收益
+- seed 消融在验证子集上显示 seed=7 略优于 seed=42（sum MAE 163.111 vs 163.360），但当前默认保留已全量验证的 seed=42 配置；seed=7 可作为下一轮全量复核候选
+- **结论：Task A最终采用PCHIP fallback + dense local segment template residual correction + adaptive confidence blend**
 
 ## Task B Ablation Results
 

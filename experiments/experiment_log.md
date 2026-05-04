@@ -368,3 +368,56 @@ local_segment_template_interpolation + adaptive confidence blend
 下一步可尝试方向归一化 residual 或局部空间网格约束，但需要警惕过拟合验证集。
 
 ---
+
+## Experiment 2026-05-04 14:32–14:34 — Task A Dense Local Template Index
+
+### Task
+Task A
+
+### Method
+local_segment_template_interpolation with dense local template index
+
+### Config
+- config file: configs/task_a_advanced.yaml
+- train data: data/data_ds15/train.pkl
+- spans: [8, 16]
+- max_segments_per_span: 2000000
+- samples_per_traj_span: 20
+- top_k: 16
+- alpha: 1.0
+- confidence_blend: linear
+- confidence_threshold: 1.2
+- fallback: PCHIP
+
+### Result
+- val_input_8: MAE=57.40 m, RMSE=83.73 m
+- val_input_16: MAE=106.48 m, RMSE=152.18 m
+- Compared with previous adaptive blend:
+  - 1/8 MAE 61.51 -> 57.40 (-6.7%), RMSE 88.59 -> 83.73 (-5.5%)
+  - 1/16 MAE 115.37 -> 106.48 (-7.7%), RMSE 162.00 -> 152.18 (-6.1%)
+- Compared with original local segment template:
+  - 1/8 MAE 64.73 -> 57.40 (-11.3%)
+  - 1/16 MAE 120.73 -> 106.48 (-11.8%)
+
+### Observations
+- 子集实验比较了 50万、100万、200万片段/span。覆盖越密，MAE/RMSE 持续下降，没有出现明显饱和。
+- 200万片段/span 的子集最优组合为 top_k=16, confidence_threshold=1.2。
+- 该实验不是单纯调参数：核心变化是把局部道路形状先验从“稀疏采样模板库”升级为“高覆盖模板库”，显著提升相似片段召回质量。
+- 代价主要是索引构建时间和内存；在 32GB 内存机器上可接受，单个验证文件整体仍在分钟级内。
+
+### Seed Check
+- 子集上比较 seed in {0, 7, 42, 123}：
+  - seed=7: sum MAE=163.111 (best subset)
+  - seed=0: sum MAE=163.276
+  - seed=123: sum MAE=163.323
+  - seed=42: sum MAE=163.360
+- seed=7 可能还有小幅收益，但未做全量复核；当前默认保留已全量验证的 seed=42。
+
+### Analysis for Report/PPT
+- 这是 Task A 当前最强结果，说明局部模板残差方法的瓶颈主要是模板覆盖度，而不是模型表达能力。
+- 可以作为“计算资源换历史先验覆盖”的创新点：不引入外部路网，通过更密的训练片段库近似城市局部道路形状。
+
+### Next Step
+如果继续追求指标，可全量复核 seed=7；也可尝试多 seed 模板库集成，但需要评估课堂测试运行时间。
+
+---

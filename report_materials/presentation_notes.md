@@ -46,8 +46,10 @@
 - wide local segment template: 62.03m / 116.50m MAE
 - wide local segment template (top_k=12): 61.66m / 115.73m MAE
 - adaptive confidence blend: 61.51m / 115.37m MAE，RMSE 88.59m / 162.00m
+- dense 2M template index: 57.40m / 106.48m MAE，RMSE 83.73m / 152.18m
 - 可讲消融：扩大训练片段覆盖后，检索到同区域/同方向局部道路形状的概率更高；盲目增大 top-k 或 alpha 反而会混入/放大不相似片段
 - 可讲机制：最近邻距离越大，历史模板越不可信，因此更多回退到 PCHIP，主要减少尾部大误差
+- 可讲突破：不使用外部路网，用更密的训练片段库近似“局部道路形状先验”，1/16 MAE 相对原局部模板下降 14.25m
 误差分布图（见 outputs/figures/）
 
 ## 6. Task B 方法（2 min）
