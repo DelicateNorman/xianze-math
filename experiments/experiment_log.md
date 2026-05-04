@@ -328,3 +328,43 @@ local_segment_template_interpolation (wide index, top_k=12)
 探索是否可以通过方向归一化、空间网格约束或近邻距离自适应权重进一步降低 RMSE。
 
 ---
+
+## Experiment 2026-05-04 14:26–14:27 — Task A Adaptive Confidence Blend
+
+### Task
+Task A
+
+### Method
+local_segment_template_interpolation + adaptive confidence blend
+
+### Config
+- config file: configs/task_a_advanced.yaml
+- max_segments_per_span: 500000
+- samples_per_traj_span: 8
+- top_k: 12
+- alpha: 1.0
+- confidence_blend: linear
+- confidence_threshold: 1.2
+- fallback: PCHIP
+
+### Result
+- val_input_8: MAE=61.51 m, RMSE=88.59 m
+- val_input_16: MAE=115.37 m, RMSE=162.00 m
+- Compared with top_k=12 wide index without confidence blend:
+  - 1/8 MAE 61.66 -> 61.51 (-0.2%), RMSE 89.21 -> 88.59 (-0.7%)
+  - 1/16 MAE 115.73 -> 115.37 (-0.3%), RMSE 163.61 -> 162.00 (-1.0%)
+
+### Observations
+- 近邻距离可以作为模板可信度：最近邻越远，说明训练集中缺少高度相似的局部道路形状。
+- 对低置信缺口直接套用历史残差会增加异常误差；线性置信融合让这些缺口更多回退到 PCHIP。
+- 子集搜索中 hard threshold 不稳定，linear confidence threshold=1.0~1.5 都有效，1.2 在 MAE/RMSE之间最稳。
+- 该方法仍不使用 val_gt 或 data_org 查表，只改变训练片段残差与无监督插值 fallback 的融合权重。
+
+### Analysis for Report/PPT
+- 这是 Task A 可以重点讲的“可靠性控制”：历史先验不是无条件使用，而是用近邻相似度估计置信度。
+- 该设计解释了为什么 RMSE 改善明显：低置信模板容易制造大误差，自适应回退能抑制尾部误差。
+
+### Next Step
+下一步可尝试方向归一化 residual 或局部空间网格约束，但需要警惕过拟合验证集。
+
+---

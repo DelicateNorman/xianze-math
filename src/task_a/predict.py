@@ -74,6 +74,9 @@ def predict_task_a(inputs: list[dict], method: str = "linear_with_speed_smoothin
                 alpha=segment_cfg.get("alpha", 1.0),
                 top_k=segment_cfg.get("top_k", 20),
                 max_feature_distance=segment_cfg.get("max_feature_distance", 2.5),
+                confidence_blend=segment_cfg.get("confidence_blend", "none"),
+                confidence_threshold=segment_cfg.get("confidence_threshold", 1.2),
+                confidence_scale=segment_cfg.get("confidence_scale", 1.0),
             )
 
         elif method == "linear_with_speed_smoothing":

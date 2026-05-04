@@ -130,8 +130,9 @@
 4. 对待恢复轨迹的每个缺口，构造特征：局部 midpoint + endpoint displacement
 5. 用 KDTree 检索 top-k 相似训练片段
 6. 用 top_k=12 的高相似片段按特征距离加权平均 residual
-7. final = linear_gap + alpha * mean_residual
-8. 已知点坐标原值回写
+7. 根据最近邻特征距离计算 confidence，低置信缺口更多回退到 PCHIP
+8. final = confidence * (linear_gap + alpha * mean_residual) + (1-confidence) * pchip_gap
+9. 已知点坐标原值回写
 
 **为什么这样设计**
 之前的 KNN 模板方法以整条轨迹起终点检索历史轨迹，但 Task A 实际要恢复的是中间局部缺口，整条轨迹相似不等于局部缺口形状相似。局部模板把匹配粒度降到缺口级别，解决了对齐问题。
@@ -147,9 +148,15 @@
 - 宽索引 + top_k=12：
   - 1/8：MAE 61.66m，RMSE 89.21m
   - 1/16：MAE 115.73m，RMSE 163.61m
+- 宽索引 + top_k=12 + 自适应置信融合：
+  - 1/8：MAE 61.51m，RMSE 88.59m
+  - 1/16：MAE 115.37m，RMSE 162.00m
 
 **参数消融结论**
 扩大训练片段覆盖比盲目增大 top-k 更有效。top-k=12、alpha=1.0 在验证集上 MAE 最优；top-k 继续增大会混入更多局部形状不够相似的片段，alpha>1 会放大残差噪声。
+
+**置信融合结论**
+最近邻特征距离可以衡量历史模板可信度。线性置信融合（threshold=1.2）在低置信缺口保留更多 PCHIP fallback，减少模板误匹配带来的尾部误差，因此 RMSE 改善更明显。
 
 **优点**
 - 比 Catmull-Rom 和 PCHIP 明显更低误差
@@ -160,6 +167,7 @@
 - 需要训练集路径可用
 - 当前配置重点优化主缺口 span=8/16，边界短缺口交给 PCHIP
 - 宽索引会增加内存和索引构建时间，但仍在课堂现场可接受范围内
+- confidence_threshold 是验证集调参结果，测试集分布差异较大时需要保留 PCHIP fallback 兜底
 - 如果测试集空间分布和训练集差异很大，模板收益会下降
 
 ---

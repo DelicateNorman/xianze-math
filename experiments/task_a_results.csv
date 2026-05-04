@@ -16,3 +16,5 @@ experiment_id,datetime,method,input_file,mae_meter,rmse_meter,config,notes
 20260504_141709,2026-05-04T14:17:09.040236,local_segment_template_interpolation,val_input_16,116.50,163.59,configs/task_a_advanced.yaml,
 20260504_142121,2026-05-04T14:21:21.180543,local_segment_template_interpolation,val_input_8,61.66,89.21,configs/task_a_advanced.yaml,
 20260504_142148,2026-05-04T14:21:48.913575,local_segment_template_interpolation,val_input_16,115.73,163.61,configs/task_a_advanced.yaml,
+20260504_142707,2026-05-04T14:27:07.620316,local_segment_template_interpolation,val_input_8,61.51,88.59,configs/task_a_advanced.yaml,
+20260504_142739,2026-05-04T14:27:39.384477,local_segment_template_interpolation,val_input_16,115.37,162.00,configs/task_a_advanced.yaml,

@@ -309,6 +309,9 @@ def local_segment_template_interpolation(
     alpha: float = 1.0,
     top_k: int = 20,
     max_feature_distance: float = 2.5,
+    confidence_blend: str = "none",
+    confidence_threshold: float = 1.2,
+    confidence_scale: float = 1.0,
     fallback_fn=None,
 ) -> np.ndarray:
     """
@@ -329,7 +332,8 @@ def local_segment_template_interpolation(
 
     linear_lonlat = linear_time_interpolation(item)
     linear_xy = _lonlat_to_local_xy(linear_lonlat)
-    result_xy = _lonlat_to_local_xy(fallback)
+    fallback_xy = _lonlat_to_local_xy(fallback)
+    result_xy = fallback_xy.copy()
     coords = item["coords"]
     mask = item["mask"]
     known_idx = np.where(mask)[0]
@@ -353,15 +357,31 @@ def local_segment_template_interpolation(
         if not np.any(keep):
             continue
 
-        weights = 1.0 / (distances[keep] + 1e-3)
+        kept_distances = distances[keep]
+        weights = 1.0 / (kept_distances + 1e-3)
         weights = weights / weights.sum()
         mean_residual = np.tensordot(
             weights,
             residuals[candidate_idx[keep]],
             axes=(0, 0),
         )
+        template_xy = linear_xy[left_idx:right_idx + 1] + alpha * mean_residual
+
+        nearest_distance = float(kept_distances[0])
+        if confidence_blend == "linear":
+            confidence = np.clip(
+                (confidence_threshold - nearest_distance) / max(confidence_threshold, 1e-6),
+                0.0,
+                1.0,
+            )
+        elif confidence_blend == "exp":
+            confidence = np.exp(-((nearest_distance / max(confidence_scale, 1e-6)) ** 2))
+        else:
+            confidence = 1.0
+
+        current_fallback = fallback_xy[left_idx:right_idx + 1]
         result_xy[left_idx:right_idx + 1] = (
-            linear_xy[left_idx:right_idx + 1] + alpha * mean_residual
+            (1.0 - confidence) * current_fallback + confidence * template_xy
         )
 
     result = _local_xy_to_lonlat(result_xy)
