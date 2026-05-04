@@ -502,7 +502,7 @@ sampling_residual_ensemble + KNN residual correction
 ### Failed / Limited Attempts
 - Residual median calibration tables by point count, timestamp phase, and route grid only reached about MAE=21.10s, so nonparametric tables cannot replace learned residual models.
 - Target transforms such as residual-per-segment, sqrt-normalized residual, direct interval prediction, and log interval prediction did not beat the KNN blend. Best target-transform blend was MAE=16.2848s.
-- Route-shape landmark features with 8/16 sampled points reached about MAE=16.32s/16.30s and did not improve the KNN blend model.
+- Route-shape landmark features with 8/16/24/32 sampled points reached best MAE=16.3008s (`shape16_hgb_d8`), so route-shape landmarks have signal but still do not improve the KNN blend model.
 - Discrete residual classification is still running/under exploration, but the first very fine 1-second class setup failed because many residual classes had only one sample.
 
 ### Leakage Check
@@ -516,5 +516,29 @@ sampling_residual_ensemble + KNN residual correction
 
 ### Next Step
 To approach MAE around 15s, the next high-value direction is not more scalar weight search but stronger route/history features: route-segment speed priors learned from train, OOF stacking, or map/road-network-informed features.
+
+---
+
+## Experiment Setup 2026-05-04 15:40 — Task B Train-Only Speed Prior
+
+### Task
+Task B
+
+### Method Under Test
+Historical speed prior from `data/data_ds15/train.pkl` only.
+
+### Design
+- Build median segment-speed tables from training trajectories with timestamps.
+- Candidate buckets: spatial grid cell, hour of day, and direction bin.
+- At prediction time, use only official Task B fields (`coords`, `departure_timestamp`) to integrate route travel time under the learned speed table.
+- Add the resulting prior time and coverage features to the existing enhanced feature matrix.
+
+### Status
+- Script added at `experiments/task_b_speed_prior_experiment.py`.
+- Syntax check passed with `python -m py_compile`.
+- Not run yet, to avoid adding another heavy process while route-shape/discrete-residual explorations were still active.
+
+### Rationale
+This is the most plausible next attempt for a larger jump toward MAE around 15s because it adds train-derived traffic/history information rather than only changing the target transform or model weights.
 
 ---
